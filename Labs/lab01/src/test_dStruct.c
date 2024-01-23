@@ -56,9 +56,12 @@ int main(int argc, char* argv[]){
 	print_status(list, 2);					//prints all entries with a status of 2
 	print_niceness(list, 4);				//prints all entries with a niceness of 4
 
-	delete_node(list, 50);			//deletes a node with pid 50
+	node* popped_node = pop_node(list);			//deletes a node with pid 50
+	printf("after pop:\n");
+	print_all(list);
 
-	printf("\n\nDouble check:\n");		
+	push_node(list, popped_node);
+	printf("\n\nafter node pushed back on:\n");		
 	print_all(list);			//prints all the entries again to double check changes and deletions
 
 	printf("Success\n");
