@@ -1,0 +1,233 @@
+/*
+#####################################################################
+#           CMPT 360    - Lab 2                      		        #
+#           Ben Morley         										#
+#						  			                                #
+#                                                                   #
+#####################################################################
+*/
+
+//HEADERS
+#include<stdio.h>
+#include"dStruct.h"
+#include<stdlib.h>
+#include<time.h>
+#include<dirent.h>
+#include<string.h>
+
+
+#define MAX_NAME_LEN 50
+
+
+//PROTOTYPES
+void create_proc(sortedLL*, int, float);
+void read_file(sortedLL*, char*);
+void check_proc(sortedLL*, sortedLL*, time_t*);
+void log_process_states(sortedLL*, sortedLL*);
+void get_filename(char*);
+void ascii_time(char*, time_t);
+void print_to_log(FILE*, sortedLL*);
+void check_dir(sortedLL*);
+
+
+
+//MAIN
+int main(int argc, char* argv[]){
+	sortedLL* ready = list_init(NULL, 0); 			// initializes ready queue
+	sortedLL* running = list_init(NULL, 0); 		// initializes running queue
+	
+	time_t current_time; 		//stores current time
+	time_t elapsed_time; 		//stores elapsed time of the current proc
+	time_t start_time; 			//stores the start time of the current proc
+	time(&start_time); 			//gets a starting time
+	time(&current_time); 		//gets a value for current time
+
+	check_dir(ready); 		// checks directory for processes
+
+	if(ready->head == NULL){  	//if no processes, program ends here 
+		exit(EXIT_SUCCESS);
+	}
+
+	add_node(running, pop_node(ready)); 		//adds a node from the ready queue to the running queue
+	set_status(running, running->head->process->pid, 2); 	//sets status to running(2)
+	int current_pid = running->head->process->pid; 		//gets the pid of the running proc
+
+
+	//loops till there is no more processes to simulate
+	while(running->head != NULL){
+		
+		time(&current_time); 		//gets the current time
+		elapsed_time = current_time - start_time; 		//calculates elapsed time
+
+		if(get_cputime(running, current_pid) != (float)elapsed_time){
+			set_cputime(running, current_pid, (float)elapsed_time); 		//sets cpu time of current proc
+			log_process_states(running, ready);
+			check_proc(running, ready, &start_time); // checks if process is complete and gets new proc if necessary
+			if(running->head != NULL){ 
+				current_pid = running->head->process->pid; 		//gets the current pid
+			}
+		}
+		check_dir(ready);  		// checks directory for new processes
+
+	}
+
+	
+
+}
+
+
+//This function creates a new process for a provided niceness and proctime
+void create_proc(sortedLL* list, int niceness, float proctime){
+	int pid = 0; 			//initializes a pid
+	int status = 1; 		//initializes a status
+	float cputime = 0.0f;   //initializes a cputime
+
+	//initializes a new process, stores the new process in a new node, and pushes the node to the ready queue
+	processEntry* new_proc = entry_init( pid, status, niceness, cputime, proctime);
+	node* new_node = node_init( new_proc);
+	push_node(list, new_node);
+}
+
+
+//reads a new process from file
+void read_file(sortedLL* list, char* filename){
+	FILE* fread = fopen(filename, "r"); 		//opens file for reading
+	if (fread == NULL){ 		//if error opening file, exit failure
+		exit(EXIT_FAILURE);
+	}
+	
+	//initialises variables for proctime and niceness
+	float proctime;
+	int niceness;
+	
+	fscanf(fread, "%f, %i", &proctime, &niceness); 		//reads data from file
+
+	create_proc(list, niceness, proctime);  //creates a process for data read from file
+	fclose(fread);
+}
+
+
+//checks process status and handles process completion
+void check_proc(sortedLL* running, sortedLL* ready, time_t* start){
+	//check if process has been completed
+	if(running->head->process->cputime >= running->head->process->proctime){
+		set_status(running, running->head->process->pid, 3); 	//sets status to 3 for complete process
+		log_process_states(running, ready);
+		delete_node(running, running->head->process->pid); //deletes completed process
+
+		//if ready queue has another process
+		if(ready->head != NULL){
+			add_node(running, pop_node(ready));  	//adds new process to running queue from ready queue
+			set_status(running, running->head->process->pid, 2); 	//sets status to running(2)
+			time(start); 			//gets a new start time for the new process
+			//print_all(running); 	//prints running queue 
+			//print_all(ready); 		//prints ready queue
+		}
+	}
+}
+
+// function that generates a proper file name for log files
+void get_filename(char* filename){
+	time_t current_time; 		//gets current time
+	time(&current_time);
+
+
+	struct tm* human_time = localtime(&current_time); 		//formats time so it's human readable
+	int month = human_time->tm_mon + 1; 		//integer to store the month
+	int day = human_time->tm_mday; 				//integer to store the day of the month
+	int year = human_time->tm_year - 100;      //integer to store the year
+
+	snprintf(filename, MAX_NAME_LEN, "log/log-%02d-%02d-%02d.txt", month, day, year); //creates string for log file name
+
+}
+
+
+//removes the new line character from the string generated by time.h's asctime() function
+void ascii_time(char* time_string, time_t current){ 
+	char* str = asctime(localtime(&current));  		//gets ascii time from asc function
+	int len = strlen(str);  		// stores length of string
+	
+	if(str[len-1] == '\n'){ 		//if the string ends in a new line char, 
+		str[len-1] = '\0'; 			//replaces new line with nul char
+	}
+	
+
+	strcpy(time_string, str); 		//copies string to existing variable
+}
+
+
+//function that prints info to log file
+void print_to_log(FILE* log_file, sortedLL* list){
+    node* current_node = list->head; 		// gets head of list 
+	time_t current_time; 				// for storing current time
+	char* human_time = malloc(sizeof(char) * MAX_NAME_LEN);  	//for storing human readable time
+
+	time(&current_time); 		//gets current time
+	ascii_time(human_time, current_time); 	// converts current time to human readable format
+
+	//loops through each node in the list adding data to logfile
+    while (current_node != NULL) { 		
+        fprintf(log_file, "%s Time: %ld, PID: %d, Status: %d, Niceness: %d, CPUTime: %f, ProcTime: %f\n",
+				human_time,
+				current_time, 
+				current_node->process->pid, 
+				current_node->process->status, 
+                current_node->process->niceness, 
+				current_node->process->cputime, 
+				current_node->process->proctime);
+        current_node = current_node->next; 		//iterates to next node
+    }
+
+
+}
+
+
+// Logging function to record the state of processes in both queues
+void log_process_states(sortedLL* running, sortedLL* ready) {
+
+	char* filename = malloc(sizeof(char) * MAX_NAME_LEN);
+	get_filename(filename);
+
+    FILE* log_file = fopen(filename, "a"); // Open the log file in append mode
+    if (log_file == NULL) {
+        // Error handling if file can't be opened
+        fprintf(stderr, "Error opening log file.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Log the state of each process in the running queue
+	//fprintf(log_file, "RUNNING QUEUE:\n");
+	print_to_log(log_file, running);
+
+    // Log the state of each process in the ready queue
+	//fprintf(log_file, "READY QUEUE:\n");
+	print_to_log(log_file, ready);
+
+    fclose(log_file); // Closes the log file
+}
+
+
+//checks directory for new processes
+void check_dir(sortedLL* ready){
+	DIR *directory; 		// directory pointer
+	struct dirent* procDir;
+	char prefix[] = "newProc/"; 		//stores the folder prefix
+	char file_name[MAX_NAME_LEN] = "newProc/";  	//initializes the file name string with the folder prefix already in
+
+	directory = opendir("newProc"); 		//opens directory
+	if(directory){ 	//if directory open was successful
+		while((procDir = readdir(directory)) != NULL){ 		// loops through each file in the directory
+			if(procDir->d_type == 8){ 		// checks if the file is a regular file
+				//printf("%s:%u\n", procDir->d_name, procDir->d_type);
+				strcat(file_name, procDir->d_name); 		//adds file name onto the folder prefix
+				//printf("%s\n", file_name);
+				read_file(ready, file_name);  		// reads data in from the file
+				remove(file_name); 			// removes the file
+			}
+			strcpy(file_name, prefix); 		// copies the prefix back to the string for the next iteration
+		}
+
+		closedir(directory); 	//closes directory
+	}
+
+}

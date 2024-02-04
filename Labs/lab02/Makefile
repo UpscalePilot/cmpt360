@@ -1,4 +1,4 @@
-# Makefile for Ben Morley/3142870 Nabil Gelle/3104375
+# Makefile for Ben Morley
 
 # C compiler
 CC:= gcc
@@ -9,9 +9,15 @@ CFLAGS:=-std=c11 -Wall
 # V Path
 VPATH:= src obj
 
+default: procSim plotData
+
 procSim: procSim.o dStruct.o		# create  app
 	$(CC) -o $@ $(CFLAGS) $^
-	mv *.o obj	
+	mv *.o obj
+
+plotData: plotData.o obj/dStruct.o 
+	$(CC) -o $@ $(CFLAGS) -lcairo $^
+	mv *.o obj
 
 dStruct.o: dStruct.c dStruct.h 
 	$(CC) $(CFLAGS) -c $^
@@ -23,11 +29,12 @@ dStruct.o: dStruct.c dStruct.h
 
 .PHONY: clean, run
 clean:				# removes all .o and app files
-	rm -f *.o procSim obj/*.o obj/*.gch
+	rm -f *.o procSim obj/*.o obj/*.gch log/*
 
 
 run:				# runs app_name application
 	./procSim
 
-
+plot:
+	./plotData
 
