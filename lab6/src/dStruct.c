@@ -94,8 +94,9 @@ void printList(struct dStruct* head)
             printf("procTime: %.2f \n\n", temp -> procTime);
             temp = temp->next;
         }
+
+        printf("\n");
     }
-    printf("\n");
     return;
 }
 
@@ -169,12 +170,22 @@ void copyReadyToRunning(struct dStruct **runningList, struct dStruct **readyList
     return;
 }
 
+void new_proc_run(struct dStruct** runningList, struct dStruct** readyList){
+    
+    if(isEmpty(runningList) == 0 && isEmpty(readyList) == 1){
+        existing_push(runningList, pop(readyList));
+        (*runningList)->status = 2;
+    }
+
+}
+
 // check if process is done in this struct
 void isTheProcessDone(struct dStruct **runningQueue){
     // check if process is done
     if ((*runningQueue)->cpuTime >= (*runningQueue)->procTime){
         // set status as complete=3
         (*runningQueue)->status = 3;
+        printf("Process %d complete\n", (*runningQueue)->pid);
     }
 
     return;
@@ -187,7 +198,46 @@ void roundRobin(struct dStruct **runningList, struct dStruct **readyList){
     }
     // set status back to 1
     (*runningList)->status = 1;
-    push(readyList, (*runningList) -> pid, (*runningList) -> status, (*runningList) -> niceness, (*runningList) -> cpuTime, (*runningList) -> procTime, (*runningList) -> tTime);
+    //push(readyList, (*runningList) -> pid, (*runningList) -> status, (*runningList) -> niceness, (*runningList) -> cpuTime, (*runningList) -> procTime, (*runningList) -> tTime);
+    existing_push(readyList, pop(runningList));
+
+    free(*runningList);
+    *runningList = NULL;
+
+    return;
+}
+
+
+// implement the roundrobin
+void mlfq_roundRobin(mlfq* mlfqQueue ,struct dStruct **runningList, int priority){
+    if (isEmpty(runningList) == 0){
+        return;
+    }
+    // set status back to 1
+    (*runningList)->status = 1;
+
+    //struct dStruct* target_queue = (struct dStruct*)malloc(sizeof(struct dStruct*));
+
+    switch(priority-1){
+        case 4:
+            //target_queue = mlfqQueue->p4;
+            existing_push(&(mlfqQueue->p4), pop(runningList));
+            break;
+        case 3:
+            //target_queue = mlfqQueue->p3;
+            existing_push(&(mlfqQueue->p3), pop(runningList));
+            break;
+        case 2:
+            //target_queue = mlfqQueue->p2;
+            existing_push(&(mlfqQueue->p2), pop(runningList));
+            break;
+        default:
+            //target_queue = mlfqQueue->p1;
+            existing_push(&(mlfqQueue->p1), pop(runningList));
+            break;   
+    }
+
+    //existing_push(&target_queue, pop(runningList));
 
     free(*runningList);
     *runningList = NULL;
@@ -200,7 +250,7 @@ void roundRobin(struct dStruct **runningList, struct dStruct **readyList){
 // from run queue, adding and removing processes from a ready queue
 // then updating, not creating a log!!!
 // updating log files until the queues are empty
-int openlog(struct dStruct *readyList, struct dStruct *runningList){
+int openlog(struct dStruct *readyList, struct dStruct *runningList, char* algorithm){
     // change directory to log
     chdir("..");
     chdir("log");
@@ -237,7 +287,7 @@ int openlog(struct dStruct *readyList, struct dStruct *runningList){
     // only time can fail is if someone made the file, before we ran the program
     if ((in_file = fopen(buf, "r")) == NULL){
         in_file = fopen(buf, "w");
-        fprintf(in_file, "time    pid   status    niceness    cputime    proctime      Group List\n");
+        fprintf(in_file, "time    pid   status    niceness    cputime    proctime      Group List\t\tAlgorithm=%s\n", algorithm);
     }
     else{
         in_file = fopen(buf, "a");
@@ -271,8 +321,67 @@ int openlog(struct dStruct *readyList, struct dStruct *runningList){
 
 
 
+struct dStruct* pop(struct dStruct** head){
+    struct dStruct* popped_node = *head;
+    *head = (*head)->next;
+    popped_node->next = NULL;
+
+    return popped_node;
+}
+
+void existing_push(struct dStruct** destination, struct dStruct* new_node){
+    new_node->next = NULL;
+
+	//if linked list is not null, set next node
+	if (*destination == NULL){
+        *destination = new_node;
+    }
+
+    else{
+		struct dStruct* temp = *destination;
+		while (temp->next != NULL){
+			temp = temp->next;
+        }
+		temp->next = new_node;
+	}
+
+    return;
+}
+
+void mlfqSort(mlfq* mlfqQueue, struct dStruct* readInQueue){
+    struct dStruct* inode = readInQueue;
+    struct dStruct* next_inode;
+
+    while(inode != NULL){
+        next_inode = inode->next;
+        switch(inode->niceness){
+            case 5:
+                existing_push(&mlfqQueue->p5, pop(&inode));
+                break;
+            case 4:
+                existing_push(&mlfqQueue->p4, pop(&inode));
+                break;
+            case 3:
+                existing_push(&mlfqQueue->p3, pop(&inode));
+                break;
+            case 2:
+                existing_push(&mlfqQueue->p2, pop(&inode));
+                break;
+            default:
+                existing_push(&mlfqQueue->p1, pop(&inode));
+                break;
+        }
+        inode = next_inode;
+    }
 
 
+}
+
+void queue_mv(struct dStruct** target, struct dStruct** source){
+    while((*source) != NULL){
+        existing_push(target, pop(source));
+    }
+}
 
 // void getCpu(struct dStruct* head, int key){
 //     struct dStruct* temp = head;

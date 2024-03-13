@@ -299,7 +299,10 @@ int main(int argc, char **argv)
 {
 	// used to iterate/open files on directory
 	char line[100], filePath[100];
-	int pid, cycleT, status, rr=0, sjf=1, numOfProcess=0;
+	int pid, status, numOfProcess=0;
+    // int rr;
+    // int sjf=1;
+    int cycleT;
     float cpuTime, procTime, lastProcTime=-1.00, firstProcTime=-1.00, totalResponseTime=0, totalTurnTime=0;
     struct data *PIDInfo = NULL;
     struct drawProcess *drawThis = NULL;
@@ -318,15 +321,33 @@ int main(int argc, char **argv)
 
     // skip first line
     fgets(line, sizeof(line), in_file);
+    char firstline[8][10];
+    char algor[5];
+    sscanf(line, "%s %s %s %s %s %s %s %s\t\tAlgorithm=%s", 
+        firstline[0],
+        firstline[1],
+        firstline[2],
+        firstline[3],
+        firstline[4],
+        firstline[5],
+        firstline[6],
+        firstline[7],
+         algor);
+
+    // printf("%s\n", algor);
+    // for(int i =0;i<8;i++){
+    //     printf("%s\n", firstline[i]);
+    // }
+    
 
     // Read the file line by line
     while (fgets(line, sizeof(line), in_file)){
         sscanf(line, "%d %d %d %*d %f %f", &cycleT, &pid, &status, &cpuTime, &procTime);
 
-        //if we have a process that is in readylist but has been processed before, its rr
-        if (status == 1 && cpuTime != 0.00){
-            rr = 1;
-        }
+        // //if we have a process that is in readylist but has been processed before, its rr
+        // if (status == 1 && cpuTime != 0.00){
+        //     rr = 1;
+        // }
 
         // check for sjf
         // set proctime for first PID on readylist, this is only used for the first cycle
@@ -334,17 +355,17 @@ int main(int argc, char **argv)
             firstProcTime = procTime;
             lastProcTime = procTime;
         }
-        // check first cycle, sjf is true until proven false
-        if (cycleT == 0 && sjf == 1){
+        //check first cycle, sjf is true until proven false
+        if (cycleT == 0 ){          //&& sjf == 1
             if (status == 1 && lastProcTime <= procTime){
                 lastProcTime = procTime;
             }
             else if (status == 1 && lastProcTime > procTime){
-                sjf = 0;
+                //sjf = 0;
             }
             // status is 2 or 3, we have runninglist at the bottom of our cycle
             else if (status != 1 && procTime < firstProcTime){
-                sjf = 0;
+                //sjf = 0;
             }
         }
 
@@ -378,7 +399,7 @@ int main(int argc, char **argv)
     fclose(in_file);
 
     // Adjust the surface width based on the total width required
-    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1300, 700);
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 8000, 700);
     cairo_t *cr = cairo_create(surface);
 
     // Draw the rectangle boxes and PID inside
@@ -410,24 +431,29 @@ int main(int argc, char **argv)
     //title and save file name based on the algorithm
     // Note: technically if FIFO files are organized as SJF by chance or even RR
     // This program will return SJF as true and print that out. False positive
-    if (rr == 1){
-        strcat(algorithm, "RR");
-        sprintf(new_file_name, "../log/img-RR-%s.png", date);
-    }
-    else if (sjf == 1){
-        strcat(algorithm, "SJF");
-        sprintf(new_file_name, "../log/img-SJF-%s.png", date);
-    }
-    else{
-        strcat(algorithm, "FIFO");
-        sprintf(new_file_name, "../log/img-FIFO-%s.png", date);
-    }
+    // if (rr == 1){
+    //     strcat(algorithm, "RR");
+    //     sprintf(new_file_name, "../log/img-RR-%s.png", date);
+    // }
+    // else if (sjf == 1){
+    //     strcat(algorithm, "SJF");
+    //     sprintf(new_file_name, "../log/img-SJF-%s.png", date);
+    // }
+    // else{
+    //     strcat(algorithm, "FIFO");
+    //     sprintf(new_file_name, "../log/img-FIFO-%s.png", date);
+    // }
+
+    strcat(algorithm, algor);
+    sprintf(new_file_name, "../log/img-%s-%s.png", algor, date);
+
     cairo_set_font_size(cr, 50);
     cairo_move_to(cr, 510, 100);
     cairo_show_text(cr, algorithm);
 
     // Save the plot to the new file name
     cairo_surface_write_to_png(surface, new_file_name);
+    printf("Image created and saved to %s\n", new_file_name);
 
     cairo_fill (cr);
 

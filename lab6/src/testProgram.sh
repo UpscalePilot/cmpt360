@@ -18,23 +18,29 @@ fi
 
 current_date=$(date +%m-%d-%Y)
 
-cp -r "$newProcPath"/* "$newProcPathB"
-./fifo
-./plotData log-$current_date.txt
+cp -r "$newProcPathB"/* "$newProcPath"
+./bin/fifo
+./bin/plotData log-$current_date.txt
 rm "$pSimulator/log/log-$current_date.txt"
 
 
 
 cp -r "$newProcPathB"/* "$newProcPath"
-./sjf
-./plotData log-$current_date.txt
+./bin/sjf
+./bin/plotData log-$current_date.txt
 rm "$pSimulator/log/log-$current_date.txt"
 
 
 
 cp -r "$newProcPathB"/* "$newProcPath"
-./rr
-./plotData log-$current_date.txt
+./bin/rr
+./bin/plotData log-$current_date.txt
+rm "$pSimulator/log/log-$current_date.txt"
+
+
+cp -r "$newProcPathB"/* "$newProcPath"
+./bin/mlfq
+./bin/plotData log-$current_date.txt
 rm "$pSimulator/log/log-$current_date.txt"
 
 make clean
