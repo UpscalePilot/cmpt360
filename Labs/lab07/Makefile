@@ -9,7 +9,7 @@ CFLAGS:=-std=c11 -Wall -lm
 # V Path
 VPATH:= src bin obj
 
-app: main.o		# create  app
+test_pi: test_pi.o		# create  app
 	$(CC) -o $@ $(CFLAGS) $^
 	mv *.o obj	
 
@@ -17,17 +17,18 @@ app: main.o		# create  app
 #	$(CC) $(CFLAGS) -c $^
 #	mv src/*.gch obj
 
-%.o: %.c			# compile .c files
-	$(CC) -c $(CFLAGS) $^
+test_pi.o: test_pi.c			# compile .c files
+	$(CC) -o $@ -c $(CFLAGS) $^
 
 
 .PHONY: clean, run
 clean:				# removes all .o and app files
-	rm -f *.o app obj/*.o obj/*.gch
+	rm -f *.o test_pi obj/*.o obj/*.gch
 
 
 run:				# runs app_name application
-	./app
+	./test_pi
+
 
 
 
