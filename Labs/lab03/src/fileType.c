@@ -113,9 +113,6 @@ int fileSystemTests(char * filename){
 		return(6);
 	}
 
-
-	
-
 }
 
 int magicNumberTests(char* filename){
